@@ -1,0 +1,328 @@
+---
+title: "Correlation Coefficient Measures"
+author: "Revanth Kota"
+date: "`r Sys.Date()`"
+output: pdf_document
+header-includes:
+  - \usepackage{framed,color}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```  
+  
+```{r}  
+# Libraries used to check relation between two variables before we start our analysis:
+library(tidyverse) # To deal with tidy structured data.
+library(acepack) # Library to check maximal correlation
+library(minerva) # Library to check Maximal Information Coefficient.
+```  
+### In this presentation I would like to talk about various correlation coefficients used to quantify associations or relations between various variables.
+
+### Correlation in simple terms is "How much can you explain or predict behaviour of one variable based on another variable"
+
+### Looking for correlations among variables in data and quantifying them is important in any analysis as it helps us in identifying important variables and improve prediction accuracy without loss of information  
+  
+### In time series analysis as successive observations are not iid's and present values depend on past values, we should look for various correlation coefficients to identify and quantify association between lags and current values as successive observations carry mutual information.  
+  
+### In this presentation we see will see:
+### a. Pearson's correlation coefficient
+### b. Spearman's Correlation coefficint 
+### c. Maximal Correlation 
+### d. Mutual Information Coefficient's to quantify association between variable and how they are used in time series analysis:
+
+## Defining the above correlation coefficients:  
+
+### Pearson's correlation: Pearson's correlation gives us the measure and direction of linear association between two variables. It values varies from -1 to +1. They do excellent job in identifying linear relation relationships between variables but fail in identifying non-linear association between two variables. Pearson's correlation does a great job in identifying and quantifying information transfer across lag in linear time series processes like : ARMA or ARIMA. 
+
+### Spearman's correlation: In spearman's correlation we rank observations of both the variables in a descending order to calculate the difference in ranks and use the calculated difference in ranks to calculate the quantity of association between variables.  
+  
+### Maximal Correlation: Maximal correlation is an optimization problem that is trying to search for transformations of X and Y such hat Pearson’s correlation between transformed X and Y is maximized. It is robust to noise unlike Maximal Information Coefficient.  
+  
+### Maximal Information Coefficient: Maximal Information Coefficient (MIC) is one of the most important measures of Independence. 
+### MIC takes value between zero and one, and it has two main properties: Generality and eq- uitability.
+### Generality means that with sufficiently large sam- ple size, the statistic should capture a wide range of asso- ciation such as linear, exponential, or periodic. 
+### Equitability means that MIC gives similar scores to equally noisy rela- tionships regardless the type of relationships. 
+### In addition, with probability approaching 1 as sample size grows, MIC gives scores of one to all noiseless functional relationships and gives scores that tend to 0 to statistically independent variables. 
+### An advantage of MIC is the ability to catch non- linear associations as well as linear associations  
+### Let's see how these correlation measures work:  
+ 
+### Gaussian white noise data generation: 
+
+```{r}  
+y <- rnorm(1000) # iid's from normal distribution with 0 mean and variance = 1.
+v1 <- y[1:999]
+v2 <- y[2:1000]  
+```  
+  
+```{r}  
+plot(v1,v2) 
+# As observations are scattered around in scatterplot, we can say that succesive 
+# observations are iid's
+```
+  
+```{r}  
+par(mfrow = c(1,3))
+plot(y, type = "l")
+acf(y)
+pacf(y) 
+```  
+  
+```{r}  
+cor(v1,v2) #pearson's correlation coefficient  
+```  
+  
+```{r}
+cor(v1,v2, method = "kendall") # kendall's correlation coefficient  
+```  
+  
+```{r}
+cor(v1,v2, method = "spearman") # spearman's correlation coefficient.  
+```  
+  
+```{r}
+minerva::mine(v1,v2) # maximal information correlation  
+```
+  
+```{r}
+argmax = ace(v1,v2)
+cor(argmax$tx, argmax$ty) # maximal corrrelation  
+```  
+### As all correlation measures are almost near to zero, we can say that all observation are iid's  
+  
+### Non linearity correlation measures:  
+### Correlation Measures for parabolic relation between x and Y    
+
+```{r}    
+x1 <- (-50:50) 
+y1 <- x1*x1 #Parabolic data generation.
+```  
+  
+```{r}    
+plot(x1,y1) # Here the function is symmertric about Y axis. 
+```    
+
+```{r}  
+cor(x1,y1) # Linear correlation comes to Zero using pearson's linear correlation measure
+```  
+  
+```{r}  
+ cor(x1,y1, method = "spearman")
+cor(x1,y1, method = "kendall")  
+# even spearman's and kendall's correlation could not detect 
+# the non linear association between x and y as their correlation scores are zero
+```  
+  
+```{r}  
+minerva::mine(x1,y1)
+argmax = ace(x1,y1)
+cor(argmax$tx, argmax$ty)   
+```  
+  
+```{r}  
+# Here, unlike pearson's, spearman's and kendall's correlation, we can see that 
+# Both maximal information coeffient and maximal correlation could detect and measure the 
+# Non linear association between x and y values as their correlation measures are 0.9999 respectively.  
+```  
+  
+### Random Walk Data generation     
+```{r}
+x <- rnorm(1)
+for (i in 2:1000) {
+  x[i] <- x[i-1] +rnorm(1)
+} 
+```
+
+### Random Noise Process generation and properties:
+```{r}  
+par(mfrow = c(1,3))
+plot(x, type = "l")
+acf(x)
+pacf(x)  
+```  
+  
+```{r}  
+v3 <- x[1:998]
+v4 <- x[2:999]
+```  
+
+```{r}  
+plot(v3,v4) 
+# As, we know that random walk is an AR(1) Process, That is, current value depends on past lags,
+# we can see that there is a strong correlation between past lag value and current values of y  
+# And this can be identified below.
+```  
+###  Correlation measures between successive lags using various correlation coefficients:
+  
+```{r}  
+cor(v3,v4) # Pearson's correlation coefficient 
+```  
+  
+```{r}  
+cor(v3,v4, method = "spearman") # Spearman's correlation coefficient 
+```  
+  
+```{r}  
+cor(v3,v4,method = "kendall") # Kendall's Tau correlation coefficient  
+```  
+  
+```{r}  
+minerva::mine(v3,v4)  
+``` 
+  
+```{r}  
+argmax = ace(v3,v4)
+cor(argmax$tx, argmax$ty)   
+```  
+### based on all the above correlation measures 
+### we can say that lag1 has high correlation with current value and 
+### current value can be explained using past values.
+ 
+   
+### Correlation coefficients calculated after substracting lag1 values from current values in random walk data generation process:
+  
+```{r}  
+v5 <- (v4-v3) # substracting lag1 we are left with noise.  
+```  
+  
+```{r}  
+plot(v5,v3) 
+# After removing first lag y(t-1) from current values y(t), 
+# we can see that the residuals are iid's
+```
+
+```{r}  
+cor(v3,v5)  
+```  
+  
+```{r}  
+cor(v3,v5, method = "spearman")
+```  
+  
+```{r}  
+cor(v3,v5,method = "kendall")
+```  
+  
+```{r}  
+minerva::mine(v3,v5)
+```  
+  
+```{r}  
+argmax = ace(v3,v5)
+cor(argmax$tx, argmax$ty)
+```  
+###  Based on the above correlation coefficient values 
+### Before and after substracting lag1 values from current values,
+### we can say that the above synthetic data is an AR process of first order
+### and it is Random walk based on ACF and PACF plots.
+ 
+### MA(1) Process generation:   
+```{r}  
+e <- rnorm(1000)
+p <- e[1]
+for (i in 2:1000) {
+p[i] <- e[i] + 0.5*e[i-1]  
+}
+```  
+  
+### MA(1) Process generation and properties:    
+```{r}  
+par(mfrow = c(1,3))
+plot(p, type = "l")
+acf(p)
+pacf(p)  
+```  
+  
+```{r}  
+v6 <- p[1:999]
+v7 <- p[2:1000]  
+```  
+  
+```{r}  
+plot(v6, v7)  
+```  
+### As error is added there is high density at the middle and 
+### from the plot we can see that there is randomness.  
+    
+```{r}  
+cor(v6,v7)  
+``` 
+  
+```{r} 
+cor(v6,v7, method = "spearman")  
+```  
+  
+```{r}  
+cor(v6,v7, method = "kendall")  
+```  
+  
+```{r}  
+minerva::mine(v6,v7)  
+```  
+  
+```{r}  
+argmax = ace(v6,v7)
+cor(argmax$tx, argmax$ty)  
+```
+  
+### Based on the above values, we can say that as error is propagating along the data, correlation measures between succesive observations is not strong.  
+
+### ARMA(1) Process data generation 
+```{r}  
+v <- rnorm(1)
+er <- rnorm(1000)
+for (i in 2:999) {
+v[i] = 0.5*v[i-1] + er[i] + 0.5*er[i-1]  
+}  
+```  
+### ARMA(1) Process and properties:  
+```{r}  
+par(mfrow = c(1,3))
+plot(p, type = "l")
+acf(v)
+pacf(v)
+```  
+  
+```{r}  
+v8 <- v[1:998]
+v9 <- v[2:999]
+```  
+  
+```{r}  
+plot(v8, v9)  
+```
+### Here, we can see that there is a strong correlation between successive observations. 
+  
+```{r}  
+cor(v8,v9)  
+```  
+  
+```{r}  
+cor(v8, v9, method = "spearman")  
+``` 
+  
+```{r}  
+cor(v8, v9, method = "kendall")  
+```  
+  
+```{r}  
+minerva::mine(v8, v9)  
+``` 
+  
+```{r}  
+argmax = ace(v8,v9)
+cor(argmax$tx, argmax$ty)  
+```
+### Here as the underlying data generation process is ARMA(1) process with an error propagating along we can see that the correlation between successive observations is not that strong unlike AR(1).
+
+## Conclusions:
+
+### a.  Unlike the above mentions scenarios where we know underlying data geneartion processes, in real world as we do not know the underlying data generation  process it is wise to plot a scatter plot to see how data is distributed? That is, we will see if there is any pattern in the data spread or the spread is random to apply suitable association measures to quantify the association between variables.  
+
+### b. If you see a linear or monotonic trends (like y = x^3 or y = e^(x)) then applying Spearman's or Pearson's correlation coefficients can quantify the association between variables. 
+
+### c. if there isn't linear or monotonic trend but non-linear trends then, we may use maximal correlation or Mutual information coefficients to identify and quantify associations between variables. 
+  
+### d. Though Mutual Information coefficient can be used to identify and quantify different kinds of association between variables we should be careful with it as it performs poorly if the data corrupted by noise.
+
+### e. Unlike, mutual Information coefficient, mutual correlation can be used to identify associations or correlations between variables as it is robust to noise.
