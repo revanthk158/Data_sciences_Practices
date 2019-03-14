@@ -1,0 +1,193 @@
+---
+title: "Assignment 5 Solutions"
+author: "Kota Revanth"
+date: "`r Sys.Date()`"
+output: pdf_document
+header-includes:
+  - \usepackage{framed,color}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```  
+  
+   
+```{r}
+
+library(tidyverse)
+```  
+**Download the unemployment and education data files from blackboard and save the files to your w6 folder. Load both the unemployment data and the education data into R.Review the unemployment data.Identify where variable names are actually values for a specific variable. Identify when multiple rows are data for the same entity. Identify when specific columns contain more than one atomic value. Tidy up the education data using spread, gather and separate.**  
+```{r}  
+unemployment <- read_csv("FipsUnemploymentDA5020(1).csv")
+
+education <- read_csv("FipsEducationsDA5020v2.csv")  
+
+educationtided <- spread(education, key = percent_measure , value = percent) %>%
+  separate(county_state, into = c("state", "county")) 
+
+head(educationtided, 5)
+
+# As the unemployment data frame contains only observation for each row,  
+# there is no need to tidy unemployment data frame.  
+# But for the education data frame each observation for the year is repeating  
+# in the percent_measure column.  
+# So percent_measure column is spread and the elements in that   
+# column takes the values in the corresponding percent column.
+# The county_state is seperated to seperate states and their counties.  
+
+```  
+
+**Break apart the education data into three distinct tibbles. One tibble named education contains the educational statistics, another tibble named fips, contains the fips number definition, and the last tibble named rural_urban_code contains the textual description of the 9 different urban to rural data descriptions. These three tibbles must be linked together to represent the relationships between the tibbles. For example, the fips table will contain 3,193 rows, where each row represents the definition of a fips number (County, State). Each row in the education table will contain the educational attainment of a spcific county. It also will contain a fips number since this data is specific to a county within a state.**  
+```{r}  
+fips <- unique(select(educationtided,fips,state,county)) 
+# contains all the fips number along with their states and counties.
+
+head(fips,10)
+rur_urb_code <- unique(select(educationtided,rural_urban_cont_code,description))
+
+rur_urb_code  <- arrange(rur_urb_code,rural_urban_cont_code)
+# contains all the rural urban codes and their description. 
+
+head(rur_urb_code,9)
+
+educationstatistics <- select(educationtided,fips,year,percent_four_plus_years_college,
+       percent_has_some_college,percent_hs_diploma,
+       `percent_less than_hs_diploma`) 
+# tibble containing educational statistics.
+
+head(educationstatistics,5)
+
+# Relation ship between educationstatistics, fips and the rur_urb_code tables. 
+# Here educationstatistics table contains education statistics 
+# of all the counties for each year.
+# fips and the rural urban code tibbles are related as, 
+# the rural_urban_code_column describes the nature of population
+# a county in a particular state based on fips number. 
+# that is, rural_urban_code column gives us information if a 
+# county in a particular state has population in a metro or urban area or rural.
+# fips and educationstatistics are related to each other 
+# as the fips number and year areused to represent education statistics of 
+# a particular county in a state for each year.
+
+```  
+
+**Answer the following questions about your tibbles: The fips column in the education table - is it a foreign or a primary key for the education tibble? What is the primary key for your education tibble? The rural_urban code tibble should only contain 9 rows. What is its primary key?**  
+```{r}  
+key <- educationstatistics %>%
+  group_by(fips, year)
+count(key) %>%
+  filter(n > 1)  
+# the combination of both year and fips number is the primary key 
+# of educaton statistics tibble as their combination does not repeat.
+fips %>% count(fips) %>%
+  filter(n > 1)
+# fips is a foreign key of education statistics tibble as it is primary key of fips tibble. 
+count(unique(rur_urb_code))
+# as the rural urban code tibble contains only 9 rows which are unique, the rural_urban_cont_code column can be used as a primary key.
+```  
+
+**Write expressions to answer the following queries**  
+**4.0 In the year 1970, what is the high school drop out rate for the Nantucket county in Massachusetts?What about the year 2015? **
+```{r}  
+educationtided %>%
+  select(year,state ,county,`percent_less than_hs_diploma`) %>%
+  filter(year == 1970, county == "Nantucket", state == "MA" )  
+# Assuming percent_less_than_hs_diploma as high school drop out.
+```  
+
+```{r}
+educationtided %>%
+  select(year,state ,county,`percent_less than_hs_diploma`) %>%
+  filter(year == 2015, county == "Nantucket", state == "MA" )
+```  
+
+**4.1 What is the average percentage of high school drop outs for the counties in Alabama for the year 2015?**
+```{r}  
+educationtided %>% filter( state == "AL") %>%
+  group_by(county) %>%
+  summarise(avg_dropout_percentage = mean(`percent_less than_hs_diploma`)) %>%
+  head(5)
+```  
+**4.2 What is the average percentage of college graduates for the counties in the state of Massachusetts for the year 2015?**  
+```{r}  
+educationtided %>%
+  filter(state == "MA",year == 2015) %>%
+  group_by(county) %>%
+  summarise(avg_per_col_grad = mean(percent_four_plus_years_college)) %>%
+  head(5)
+
+# Assuming only percent_four_plus_years as college graduates as 
+# percent_some_college may be attended college but did not graduate case.
+```  
+**4.3 Determine the average percentage of high school drop outs for the counties in Alabama for each year within the dataset. The result should return the calendar year and the average percentage drop out rate for that year.**  
+```{r}  
+educationtided %>%
+  filter(state == "AL") %>%
+  group_by(year) %>%
+  summarise(avg_per_dropout = mean(`percent_less than_hs_diploma`))  
+# here we can see that high school drop out rate decreases as time increase
+```  
+**4.4 What is the most common rural_urban code for the U.S. counties?**  
+```{r}  
+educationtided %>%
+  filter(!is.na(rural_urban_cont_code)) %>%
+  group_by(rural_urban_cont_code) %>%
+  count()
+# 6 is the most common rural_urban_cont_code repeating 2961 times.
+```  
+**4.5 Which counties have not been coded with a rural urban code? Return a result that contains two fields: County, State for the counties that has not been assigned a rural urban code. Do not return duplicate values in the result. Order the result alphabetically by state**  
+```{r}  
+educationtided %>%
+  select(state,county) %>%
+  filter(educationtided$rural_urban_cont_code == "NULL") %>%
+  group_by(state,county) %>%
+  unique() %>%
+  arrange() 
+# Here we can see that the counties which have the same name as state
+# have no rural urban code.
+```  
+**4.6 What is the minimal percentage of college graduates for the counties in the state of Mississippi for the year 2010?**
+```{r}  
+educationtided %>%
+  select(state,county,percent_four_plus_years_college) %>%
+  filter(state == "MS", educationtided$year == 2010) %>%
+  group_by(county) %>%
+  arrange(percent_four_plus_years_college)
+```
+**4.7 Which state contains the most number of counties that have not been provided a rural urban code?**  
+```{r}  
+educationtided %>%
+  filter(educationtided$rural_urban_cont_code == "NULL") %>%
+  group_by(state) %>% 
+  count()  
+# Here the counties which have the same name as the state have no names. 
+```  
+**4.8 In the year 2015, which fip counties, U.S. states contain a higher percentage of unemployed citizens than the percentage of college graduates? List the county name and the state name. Order the result alphabetically by state.**  
+```{r}  
+unemp_edu <-inner_join(educationtided,unemployment)
+  
+unemp_edu %>%  select(county,state,percent_unemployed,percent_four_plus_years_college) %>%
+  filter( unemp_edu$percent_unemployed >=unemp_edu$percent_four_plus_years_college) %>%
+  head(10)
+```  
+**4.9 Return the county, U.S. state and year that contains the highest percentage of college graduates in this dataset?**  
+```{r}
+educationtided %>%
+select(year,state,county,percent_four_plus_years_college) %>%
+  arrange(desc(percent_four_plus_years_college)) %>%
+  head(5)
+```  
+**Open question: explore the unemployment rate and the high school drop out rate over the time period in common for the two datasets. What can you discover? Create a plot that supports your discovery.**
+```{r}  
+ggplot(data = unemp_edu) + 
+  geom_smooth(mapping = aes(x = `percent_less than_hs_diploma`, y = percent_unemployed), se = FALSE)  
+# here we can see that as the high school drop outs rate increase,
+# the unemployment rate increase on a whole.
+# we can interpret that states with high high-school drops have high unemployment percentage
+# This can be attributed to skill gap.
+```
+  
+```{r}  
+ggplot(data = unemp_edu)+
+    geom_point(mapping = aes(x = `percent_less than_hs_diploma`,y = percent_unemployed, color = state))
+```
